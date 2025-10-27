@@ -1,6 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ProjectService } from "../services/projectService";
+import {
+  ProjectNameSchema,
+  ProjectDescriptionSchema,
+  ProjectNamesSchema,
+  ProjectNamesStringSchema,
+  TagsSchema,
+  BooleanSchema,
+} from "../validation";
 
 export function registerProjectTools(
   server: McpServer,
@@ -15,38 +23,21 @@ export function registerProjectTools(
       description:
         "Create new project containers for tasks. Multiple names can be provided separated by commas. Supports tags (comma-separated).",
       inputSchema: {
-        names: z
-          .string()
-          .min(1, "Names cannot be empty.")
-          .max(1000, "Names too long."),
-        description: z
-          .string()
-          .max(2000, "Description is too long.")
-          .optional(),
-        tags: z.string().optional(), // comma-separated
+        names: ProjectNamesSchema,
+        description: ProjectDescriptionSchema,
+        tags: TagsSchema,
       },
     },
     async (input, extra) => {
       guardAuth(metadataFromContext(extra));
-      const names = input.names
-        .split(",")
-        .map((n) => n.trim())
-        .filter((n) => n && /^\S+$/.test(n));
-      if (names.length === 0) {
-        throw new Error("No valid names provided.");
-      }
-      const parsedTags = input.tags
-        ? input.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : undefined;
+      const { names, description, tags } = input;
+      // names is now already an array from ProjectNamesSchema transform
       const projects = [];
       for (const name of names) {
         const project = await projectService.createProject({
           name,
-          description: input.description,
-          tags: parsedTags,
+          description,
+          tags,
         });
         projects.push(project);
       }
@@ -61,7 +52,7 @@ export function registerProjectTools(
       description:
         "List projects. Archived projects are excluded unless includeArchived is true.",
       inputSchema: {
-        includeArchived: z.boolean().optional(),
+        includeArchived: BooleanSchema.optional(),
       },
     },
     async (input, extra) => {
@@ -80,20 +71,15 @@ export function registerProjectTools(
       description:
         "Archive projects and all of their tasks. Multiple project names can be provided separated by commas.",
       inputSchema: {
-        projectNames: z.string().min(1, "Project names are required."),
+        projectNames: ProjectNamesStringSchema,
       },
     },
     async (input, extra) => {
       guardAuth(metadataFromContext(extra));
-      const names = input.projectNames
-        .split(",")
-        .map((name) => name.trim())
-        .filter((name) => name);
-      if (names.length === 0) {
-        throw new Error("No valid project names provided.");
-      }
+      const { projectNames } = input;
+      // projectNames is now already an array from ProjectNamesStringSchema transform
       const projects = [];
-      for (const name of names) {
+      for (const name of projectNames) {
         const project = await projectService.archiveProject(name);
         projects.push(project);
       }

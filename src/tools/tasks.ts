@@ -3,6 +3,21 @@ import { z } from "zod";
 import type { ProjectService } from "../services/projectService";
 import type { TaskService } from "../services/taskService";
 import type { Project, TaskStatus, TaskPriority } from "../types";
+import {
+  ProjectNameSchema,
+  TaskTitlesSchema,
+  TaskTitleSchema,
+  TaskDescriptionSchema,
+  PrioritySchema,
+  DueDateSchema,
+  TagsSchema,
+  TaskIdSchema,
+  StatusSchema,
+  SortBySchema,
+  OrderSchema,
+  BooleanSchema,
+  SearchQuerySchema,
+} from "../validation";
 
 const TASK_STATUS_ENUM = ["todo", "pending", "completed", "archived"] as const;
 const TASK_PRIORITY_ENUM = ["low", "medium", "high"] as const;
@@ -21,19 +36,13 @@ export function registerTaskTools(
       description:
         "Create new tasks inside a project. Multiple titles can be provided separated by commas. Supports due dates (ISO string), priority (low/medium/high), tags (comma-separated), and parent task ID for subtasks.",
       inputSchema: {
-        projectName: z.string(),
-        titles: z
-          .string()
-          .min(1, "Task titles cannot be empty.")
-          .max(2000, "Task titles too long."),
-        description: z
-          .string()
-          .max(4000, "Task description is too long.")
-          .optional(),
-        priority: z.enum(TASK_PRIORITY_ENUM).optional(),
-        dueDate: z.string().optional(), // ISO string
-        tags: z.string().optional(), // comma-separated
-        parentTaskId: z.string().optional(),
+        projectName: ProjectNameSchema,
+        titles: TaskTitlesSchema,
+        description: TaskDescriptionSchema,
+        priority: PrioritySchema.optional(),
+        dueDate: DueDateSchema,
+        tags: TagsSchema,
+        parentTaskId: TaskIdSchema.optional(),
       },
     },
     async (input, extra) => {
@@ -55,19 +64,8 @@ export function registerTaskTools(
         throw new Error(`Project "${projectName}" is archived.`);
       }
       const project = found;
-      const titleList = titles
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t);
-      if (titleList.length === 0) {
-        throw new Error("No valid titles provided.");
-      }
-      const parsedTags = tags
-        ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : undefined;
+      // titles is now already an array from TaskTitlesSchema transform
+      const titleList = titles;
       const tasks = [];
       for (const title of titleList) {
         const task = await taskService.createTask({
@@ -76,7 +74,7 @@ export function registerTaskTools(
           description,
           priority: priority as TaskPriority | undefined,
           dueDate,
-          tags: parsedTags,
+          tags,
           parentTaskId,
         });
         tasks.push(task);
@@ -89,7 +87,7 @@ export function registerTaskTools(
         suggestions.push(
           "Create subtasks by setting parentTaskId to this task's ID"
         );
-        if (!parsedTags || parsedTags.length === 0) {
+        if (!tags || tags.length === 0) {
           suggestions.push(
             "Add tags for better organization (e.g., 'urgent', 'backend', 'feature')"
           );
@@ -117,16 +115,14 @@ export function registerTaskTools(
       description:
         "List tasks across projects. Archived items are excluded unless includeArchived is true. Supports filtering by status, priority, tags, and subtasks. Supports sorting by createdAt, dueDate, priority, or title.",
       inputSchema: {
-        projectName: z.string().optional(),
-        status: z.enum(TASK_STATUS_ENUM).optional(),
-        priority: z.enum(TASK_PRIORITY_ENUM).optional(),
-        tags: z.string().optional(), // comma-separated tags to filter by
-        hasSubtasks: z.boolean().optional(), // true for tasks with subtasks, false for without
-        sortBy: z
-          .enum(["createdAt", "dueDate", "priority", "title"])
-          .optional(),
-        order: z.enum(["asc", "desc"]).optional(),
-        includeArchived: z.boolean().optional(),
+        projectName: ProjectNameSchema.optional(),
+        status: StatusSchema.optional(),
+        priority: PrioritySchema.optional(),
+        tags: TagsSchema, // comma-separated tags to filter by
+        hasSubtasks: BooleanSchema.optional(), // true for tasks with subtasks, false for without
+        sortBy: SortBySchema.optional(),
+        order: OrderSchema.optional(),
+        includeArchived: BooleanSchema.optional(),
       },
     },
     async (input, extra) => {
@@ -139,12 +135,7 @@ export function registerTaskTools(
         }
         projectId = project.id;
       }
-      const parsedTags = input?.tags
-        ? input.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : undefined;
+      const parsedTags = input?.tags || [];
       const tasks = await taskService.listTasks({
         projectId,
         includeArchived: input?.includeArchived,
@@ -198,8 +189,8 @@ export function registerTaskTools(
       description:
         "Move a task between todo, pending, completed, or archived states.",
       inputSchema: {
-        taskId: z.string().min(1, "Task id is required."),
-        status: z.enum(TASK_STATUS_ENUM),
+        taskId: TaskIdSchema,
+        status: StatusSchema,
       },
     },
     async (input, extra) => {
@@ -238,26 +229,18 @@ export function registerTaskTools(
       description:
         "Update existing task properties like title, description, priority, due date, and tags.",
       inputSchema: {
-        taskId: z.string().min(1, "Task id is required."),
-        title: z.string().min(1, "Title cannot be empty.").optional(),
-        description: z
-          .string()
-          .max(4000, "Task description is too long.")
-          .optional(),
-        priority: z.enum(TASK_PRIORITY_ENUM).optional(),
-        dueDate: z.string().optional(), // ISO string
-        tags: z.string().optional(), // comma-separated
+        taskId: TaskIdSchema,
+        title: TaskTitleSchema.optional(),
+        description: TaskDescriptionSchema.optional(),
+        priority: PrioritySchema.optional(),
+        dueDate: DueDateSchema,
+        tags: TagsSchema,
       },
     },
     async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const { taskId, title, description, priority, dueDate, tags } = input;
-      const parsedTags = tags
-        ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : undefined;
+      const parsedTags = tags || [];
       const task = await taskService.updateTask({
         taskId,
         title,
@@ -338,13 +321,11 @@ export function registerTaskTools(
       description:
         "Search tasks by title or description across all projects. Supports advanced query syntax like 'priority:high due:before:2025-11-01' and tag filtering. Supports sorting.",
       inputSchema: {
-        query: z.string().min(1, "Query is required.").optional(), // Can be advanced query or simple text
-        tags: z.string().optional(), // comma-separated tags to filter by
-        sortBy: z
-          .enum(["createdAt", "dueDate", "priority", "title"])
-          .optional(),
-        order: z.enum(["asc", "desc"]).optional(),
-        includeArchived: z.boolean().optional(),
+        query: SearchQuerySchema, // Can be advanced query or simple text
+        tags: TagsSchema, // comma-separated tags to filter by
+        sortBy: SortBySchema.optional(),
+        order: OrderSchema.optional(),
+        includeArchived: BooleanSchema.optional(),
       },
     },
     async (input, extra) => {
@@ -401,13 +382,9 @@ export function registerTaskTools(
       }
 
       // Filter by tags if provided
-      if (input.tags) {
-        const parsedTags = input.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t);
+      if (input.tags && input.tags.length > 0) {
         filteredTasks = filteredTasks.filter((task) =>
-          parsedTags.some((tag) => task.tags.includes(tag))
+          input.tags.some((tag: string) => task.tags.includes(tag))
         );
       }
 
