@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { ProjectRepository } from "../repositories/projectRepository";
 import type { TaskRepository } from "../repositories/taskRepository";
 import type { ListProjectsOptions, Project, Task } from "../types";
@@ -15,10 +14,11 @@ export class ProjectService {
   ) {}
 
   async createProject(input: CreateProjectInput): Promise<Project> {
+    const trimmedName = input.name.trim();
     const now = new Date().toISOString();
     const project: Project = {
-      id: randomUUID(),
-      name: input.name.trim(),
+      id: trimmedName,
+      name: trimmedName,
       description: input.description?.trim(),
       archived: false,
       createdAt: now,
@@ -35,7 +35,9 @@ export class ProjectService {
       return projects.sort(sortByCreatedAt);
     }
 
-    return projects.filter((project) => !project.archived).sort(sortByCreatedAt);
+    return projects
+      .filter((project) => !project.archived)
+      .sort(sortByCreatedAt);
   }
 
   async getByIdOrThrow(id: string): Promise<Project> {
@@ -80,6 +82,11 @@ export class ProjectService {
     await this.taskRepository.saveMany(updatedTasks);
 
     return project;
+  }
+
+  async getByName(name: string): Promise<Project | null> {
+    const projects = await this.listProjects({ includeArchived: true });
+    return projects.find((project) => project.name === name) || null;
   }
 }
 

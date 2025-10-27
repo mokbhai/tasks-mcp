@@ -17,8 +17,7 @@ const readAuthorization = (metadata: unknown): string | undefined => {
   const headers = record.headers;
   if (headers && typeof headers === "object") {
     const headerRecord = headers as Record<string, unknown>;
-    const headerAuth =
-      headerRecord.authorization ?? headerRecord.Authorization;
+    const headerAuth = headerRecord.authorization ?? headerRecord.Authorization;
     if (typeof headerAuth === "string") {
       return headerAuth;
     }
