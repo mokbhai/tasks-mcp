@@ -81,7 +81,32 @@ export function registerTaskTools(
         });
         tasks.push(task);
       }
-      return toJsonResponse(tasks);
+      const suggestions: string[] = [];
+      if (tasks.length > 0) {
+        suggestions.push(
+          "Use update_task to modify priority, due dates, or tags after creation"
+        );
+        suggestions.push(
+          "Create subtasks by setting parentTaskId to this task's ID"
+        );
+        if (!parsedTags || parsedTags.length === 0) {
+          suggestions.push(
+            "Add tags for better organization (e.g., 'urgent', 'backend', 'feature')"
+          );
+        }
+        if (!priority) {
+          suggestions.push(
+            "Set priority levels: 'high' for urgent tasks, 'medium' for important, 'low' for nice-to-have"
+          );
+        }
+        if (!dueDate) {
+          suggestions.push(
+            "Set due dates for time-sensitive tasks using ISO format (e.g., '2025-11-01T10:00:00Z')"
+          );
+        }
+      }
+
+      return toJsonResponse(tasks, suggestions);
     }
   );
 
@@ -130,7 +155,39 @@ export function registerTaskTools(
         sortBy: input?.sortBy,
         order: input?.order,
       });
-      return toJsonResponse(tasks);
+
+      // Add suggestions based on the results
+      const suggestions: string[] = [];
+      if (tasks.length === 0) {
+        if (input?.projectName) {
+          suggestions.push(
+            `Check if project "${input.projectName}" exists and has tasks`
+          );
+          suggestions.push(
+            "Try listing tasks without project filter to see all tasks"
+          );
+        }
+        if (input?.status) {
+          suggestions.push(
+            `Try different status filters or remove status filter to see all tasks`
+          );
+        }
+        if (input?.priority) {
+          suggestions.push(
+            "Try different priority levels or remove priority filter"
+          );
+        }
+        if (parsedTags) {
+          suggestions.push(
+            "Try different tags or remove tag filter to see more tasks"
+          );
+        }
+        if (!input?.includeArchived) {
+          suggestions.push("Include archived tasks with includeArchived=true");
+        }
+      }
+
+      return toJsonResponse(tasks, suggestions);
     }
   );
 
@@ -151,7 +208,26 @@ export function registerTaskTools(
         taskId: input.taskId,
         status: input.status as TaskStatus,
       });
-      return toJsonResponse(task);
+
+      const suggestions: string[] = [];
+      if (task) {
+        if (task.status === "completed") {
+          suggestions.push(
+            "Consider creating follow-up tasks or subtasks for completed work"
+          );
+          suggestions.push("Use archive_task if this task is no longer needed");
+        } else if (task.status === "pending") {
+          suggestions.push(
+            "Set a due date for pending tasks to track progress"
+          );
+          suggestions.push("Update priority if this task became more urgent");
+        } else if (task.status === "todo") {
+          suggestions.push("Break down large tasks into smaller subtasks");
+          suggestions.push("Add tags for better organization");
+        }
+      }
+
+      return toJsonResponse(task, suggestions);
     }
   );
 
@@ -190,7 +266,26 @@ export function registerTaskTools(
         dueDate,
         tags: parsedTags,
       });
-      return toJsonResponse(task);
+
+      const suggestions: string[] = [];
+      if (task) {
+        suggestions.push("Use list_tasks to see all tasks in the project");
+        suggestions.push(
+          "Use search_tasks for advanced filtering by tags, priority, or due dates"
+        );
+        if (task.status === "completed") {
+          suggestions.push(
+            "Consider creating follow-up tasks or subtasks for completed work"
+          );
+        }
+        if (task.dueDate && new Date(task.dueDate) < new Date()) {
+          suggestions.push(
+            "Task is overdue - consider updating the due date or priority"
+          );
+        }
+      }
+
+      return toJsonResponse(task, suggestions);
     }
   );
 
@@ -218,7 +313,21 @@ export function registerTaskTools(
         const task = await taskService.archiveTask(id);
         tasks.push(task);
       }
-      return toJsonResponse(tasks);
+
+      const suggestions: string[] = [];
+      if (tasks.length > 0) {
+        suggestions.push(
+          "Archived tasks can be viewed by setting includeArchived=true in list_tasks or search_tasks"
+        );
+        suggestions.push(
+          "Use search_tasks with 'status:archived' to find archived tasks"
+        );
+        suggestions.push(
+          "Consider creating new tasks to replace archived ones if needed"
+        );
+      }
+
+      return toJsonResponse(tasks, suggestions);
     }
   );
 
@@ -307,7 +416,25 @@ export function registerTaskTools(
       const order = input?.order || "asc";
       filteredTasks = sortTasks(filteredTasks, sortBy, order);
 
-      return toJsonResponse(filteredTasks);
+      // Add suggestions based on the search results
+      const suggestions: string[] = [];
+      if (filteredTasks.length === 0) {
+        suggestions.push(
+          "Try using broader search terms or check if the project name is correct"
+        );
+        suggestions.push(
+          "Use advanced query syntax like 'priority:high' or 'status:pending'"
+        );
+        suggestions.push(
+          "Try searching without tags filter to see all matching tasks"
+        );
+      } else if (input.query && !input.query.includes(":")) {
+        suggestions.push(
+          "For more precise results, try advanced queries like 'priority:high due:before:2025-11-01'"
+        );
+      }
+
+      return toJsonResponse(filteredTasks, suggestions);
     }
   );
 }
@@ -405,13 +532,25 @@ function sortTasks(tasks: any[], sortBy: string, order: "asc" | "desc"): any[] {
   });
 }
 
-const toJsonResponse = (payload: unknown) => {
-  return {
+const toJsonResponse = (payload: unknown, suggestions?: string[]) => {
+  const result: any = {
     content: [
       { type: "text" as const, text: JSON.stringify(payload, null, 2) },
     ],
-    structuredContent: Array.isArray(payload)
-      ? { items: payload }
-      : (payload as Record<string, unknown>),
   };
+
+  if (Array.isArray(payload)) {
+    result.structuredContent = { items: payload };
+  } else {
+    result.structuredContent = payload as Record<string, unknown>;
+  }
+
+  if (suggestions && suggestions.length > 0) {
+    result.content.push({
+      type: "text" as const,
+      text: `\n💡 Suggestions:\n${suggestions.map((s) => `• ${s}`).join("\n")}`,
+    });
+  }
+
+  return result;
 };
