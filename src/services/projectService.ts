@@ -5,6 +5,7 @@ import type { ListProjectsOptions, Project, Task } from "../types";
 interface CreateProjectInput {
   name: string;
   description?: string;
+  tags?: string[];
 }
 
 export class ProjectService {
@@ -20,6 +21,7 @@ export class ProjectService {
       id: trimmedName,
       name: trimmedName,
       description: input.description?.trim(),
+      tags: input.tags || [],
       archived: false,
       createdAt: now,
       updatedAt: now,
