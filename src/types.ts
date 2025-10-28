@@ -16,6 +16,7 @@ export interface Task {
   projectId: string;
   title: string;
   description?: string;
+  remarks?: string; // User remarks for the task
   status: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string; // ISO string

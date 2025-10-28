@@ -5,6 +5,7 @@ import {
   ProjectNameSchema,
   TaskTitleSchema,
   TaskTitlesSchema,
+  TaskRemarksSchema,
   TagsSchema,
   DueDateSchema,
   PrioritySchema,
@@ -117,6 +118,46 @@ describe("Zod Schemas", () => {
       expect(() => TaskTitlesSchema.parse("   ,   ,   ")).toThrow(
         "No valid task titles provided after sanitization"
       );
+    });
+  });
+
+  describe("TaskRemarksSchema", () => {
+    test("accepts valid remarks", () => {
+      expect(TaskRemarksSchema.parse("This is a remark")).toBe(
+        "This is a remark"
+      );
+      expect(TaskRemarksSchema.parse("Waiting for feedback")).toBe(
+        "Waiting for feedback"
+      );
+    });
+
+    test("sanitizes remarks", () => {
+      expect(TaskRemarksSchema.parse("  remarks   with   spaces  ")).toBe(
+        "remarks with spaces"
+      );
+      expect(TaskRemarksSchema.parse("remarks\twith\nnewlines")).toBe(
+        "remarks with newlines"
+      );
+    });
+
+    test("rejects remarks exceeding max length", () => {
+      const longRemarks = "a".repeat(2001);
+      expect(() => TaskRemarksSchema.parse(longRemarks)).toThrow(
+        "Task remarks cannot exceed 2000 characters"
+      );
+    });
+
+    test("accepts remarks up to max length", () => {
+      const maxRemarks = "a".repeat(2000);
+      expect(TaskRemarksSchema.parse(maxRemarks)).toBe(maxRemarks);
+    });
+
+    test("accepts undefined remarks", () => {
+      expect(TaskRemarksSchema.parse(undefined)).toBeUndefined();
+    });
+
+    test("returns empty string for empty input", () => {
+      expect(TaskRemarksSchema.parse("")).toBe("");
     });
   });
 

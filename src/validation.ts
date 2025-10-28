@@ -45,6 +45,12 @@ export const TaskDescriptionSchema = z
   .optional()
   .transform((val) => (val ? sanitizeString(val) : val));
 
+export const TaskRemarksSchema = z
+  .string()
+  .max(2000, "Task remarks cannot exceed 2000 characters")
+  .optional()
+  .transform((val) => (val ? sanitizeString(val) : val));
+
 export const TaskTitlesSchema = z
   .string()
   .min(1, "Task titles cannot be empty")

@@ -13,6 +13,7 @@ interface CreateTaskInput {
   projectId: string;
   title: string;
   description?: string;
+  remarks?: string;
   priority?: TaskPriority;
   dueDate?: string;
   tags?: string[];
@@ -23,6 +24,7 @@ interface UpdateTaskInput {
   taskId: string;
   title?: string;
   description?: string;
+  remarks?: string;
   priority?: TaskPriority;
   dueDate?: string;
   tags?: string[];
@@ -61,6 +63,7 @@ export class TaskService {
       projectId: project.id,
       title: input.title.trim(),
       description: input.description?.trim(),
+      remarks: input.remarks?.trim(),
       status: "todo",
       priority: input.priority,
       dueDate: input.dueDate,
@@ -241,6 +244,8 @@ export class TaskService {
         input.description !== undefined
           ? input.description?.trim()
           : task.description,
+      remarks:
+        input.remarks !== undefined ? input.remarks?.trim() : task.remarks,
       priority: input.priority !== undefined ? input.priority : task.priority,
       dueDate: input.dueDate !== undefined ? input.dueDate : task.dueDate,
       tags: input.tags !== undefined ? input.tags : task.tags,

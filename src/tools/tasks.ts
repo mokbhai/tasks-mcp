@@ -8,6 +8,7 @@ import {
   TaskTitlesSchema,
   TaskTitleSchema,
   TaskDescriptionSchema,
+  TaskRemarksSchema,
   PrioritySchema,
   DueDateSchema,
   TagsSchema,
@@ -34,11 +35,12 @@ export function registerTaskTools(
     {
       title: "Create Task",
       description:
-        "Create new tasks inside a project. Multiple titles can be provided separated by commas. Supports due dates (ISO string), priority (low/medium/high), tags (comma-separated), and parent task ID for subtasks.",
+        "Create new tasks inside a project. Multiple titles can be provided separated by commas. Supports due dates (ISO string), priority (low/medium/high), tags (comma-separated), remarks, and parent task ID for subtasks.",
       inputSchema: {
         projectName: ProjectNameSchema,
         titles: TaskTitlesSchema,
         description: TaskDescriptionSchema,
+        remarks: TaskRemarksSchema,
         priority: PrioritySchema.optional(),
         dueDate: DueDateSchema,
         tags: TagsSchema,
@@ -51,6 +53,7 @@ export function registerTaskTools(
         projectName,
         titles,
         description,
+        remarks,
         priority,
         dueDate,
         tags,
@@ -72,6 +75,7 @@ export function registerTaskTools(
           projectId: project.id,
           title,
           description,
+          remarks,
           priority: priority as TaskPriority | undefined,
           dueDate,
           tags,
@@ -82,7 +86,7 @@ export function registerTaskTools(
       const suggestions: string[] = [];
       if (tasks.length > 0) {
         suggestions.push(
-          "Use update_task to modify priority, due dates, or tags after creation"
+          "Use update_task to modify priority, due dates, tags, or remarks after creation"
         );
         suggestions.push(
           "Create subtasks by setting parentTaskId to this task's ID"
@@ -227,11 +231,12 @@ export function registerTaskTools(
     {
       title: "Update Task",
       description:
-        "Update existing task properties like title, description, priority, due date, and tags.",
+        "Update existing task properties like title, description, remarks, priority, due date, and tags.",
       inputSchema: {
         taskId: TaskIdSchema,
         title: TaskTitleSchema.optional(),
         description: TaskDescriptionSchema.optional(),
+        remarks: TaskRemarksSchema.optional(),
         priority: PrioritySchema.optional(),
         dueDate: DueDateSchema,
         tags: TagsSchema,
@@ -239,12 +244,14 @@ export function registerTaskTools(
     },
     async (input, extra) => {
       guardAuth(metadataFromContext(extra));
-      const { taskId, title, description, priority, dueDate, tags } = input;
+      const { taskId, title, description, remarks, priority, dueDate, tags } =
+        input;
       const parsedTags = tags || [];
       const task = await taskService.updateTask({
         taskId,
         title,
         description,
+        remarks,
         priority: priority as TaskPriority | undefined,
         dueDate,
         tags: parsedTags,

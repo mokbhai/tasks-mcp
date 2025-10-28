@@ -54,6 +54,7 @@ describe("TaskService", () => {
         projectId: "project-1",
         title: "Test Task",
         description: "Test description",
+        remarks: "Initial remarks",
         priority: "high" as TaskPriority,
         dueDate: "2025-12-01T10:00:00Z",
         tags: ["urgent", "backend"],
@@ -65,6 +66,7 @@ describe("TaskService", () => {
       expect(result).toBeDefined();
       expect(result.title).toBe("Test Task");
       expect(result.description).toBe("Test description");
+      expect(result.remarks).toBe("Initial remarks");
       expect(result.priority).toBe("high");
       expect(result.dueDate).toBe("2025-12-01T10:00:00Z");
       expect(result.tags).toEqual(["urgent", "backend"]);
@@ -87,6 +89,7 @@ describe("TaskService", () => {
 
       expect(result.title).toBe("Minimal Task");
       expect(result.description).toBeUndefined();
+      expect(result.remarks).toBeUndefined();
       expect(result.priority).toBeUndefined();
       expect(result.dueDate).toBeUndefined();
       expect(result.tags).toEqual([]);
@@ -127,6 +130,7 @@ describe("TaskService", () => {
         projectId: "project-1",
         title: "Old Title",
         description: "Old description",
+        remarks: "Old remarks",
         status: "todo" as TaskStatus,
         priority: "low" as TaskPriority,
         tags: ["old"],
@@ -140,6 +144,7 @@ describe("TaskService", () => {
       const updateData = {
         taskId: "task-1",
         title: "New Title",
+        remarks: "Updated remarks",
         priority: "high" as TaskPriority,
         tags: ["new", "urgent"],
       };
@@ -148,6 +153,7 @@ describe("TaskService", () => {
 
       expect(result).toBeDefined();
       expect(result!.title).toBe("New Title");
+      expect(result!.remarks).toBe("Updated remarks");
       expect(result!.priority).toBe("high");
       expect(result!.tags).toEqual(["new", "urgent"]);
       expect(result!.description).toBe("Old description"); // Unchanged
@@ -165,6 +171,38 @@ describe("TaskService", () => {
           title: "New Title",
         })
       ).rejects.toThrow("Task nonexistent does not exist.");
+    });
+
+    test("updates remarks without changing other fields", async () => {
+      const existingTask = {
+        id: "task-1",
+        projectId: "project-1",
+        title: "Test Task",
+        description: "Original description",
+        remarks: "Old remarks",
+        status: "todo" as TaskStatus,
+        priority: "medium" as TaskPriority,
+        tags: ["important"],
+        archived: false,
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+      };
+
+      mockTaskRepository.getById.mockResolvedValue(existingTask);
+
+      const updateData = {
+        taskId: "task-1",
+        remarks: "New remarks after review",
+      };
+
+      const result = await taskService.updateTask(updateData);
+
+      expect(result!.remarks).toBe("New remarks after review");
+      expect(result!.title).toBe("Test Task"); // Unchanged
+      expect(result!.description).toBe("Original description"); // Unchanged
+      expect(result!.priority).toBe("medium"); // Unchanged
+
+      expect(mockTaskRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 
