@@ -14,6 +14,7 @@ interface CreateTaskInput {
   title: string;
   description?: string;
   remarks?: string;
+  status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string;
   tags?: string[];
@@ -25,6 +26,7 @@ interface UpdateTaskInput {
   title?: string;
   description?: string;
   remarks?: string;
+  status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string;
   tags?: string[];
@@ -57,19 +59,29 @@ export class TaskService {
       }
     }
 
+    const status = input.status ?? "todo";
+    if (!VALID_STATUSES.has(status)) {
+      throw new Error(
+        `Unsupported task status "${status}". Valid values: ${[
+          ...VALID_STATUSES,
+        ].join(", ")}`
+      );
+    }
+
     const now = new Date().toISOString();
+    const archived = status === "archived";
     const task: Task = {
       id: randomUUID(),
       projectId: project.id,
       title: input.title.trim(),
       description: input.description?.trim(),
       remarks: input.remarks?.trim(),
-      status: "todo",
+      status,
       priority: input.priority,
       dueDate: input.dueDate,
       tags: input.tags || [],
       parentTaskId: input.parentTaskId,
-      archived: false,
+      archived,
       createdAt: now,
       updatedAt: now,
     };
@@ -237,6 +249,16 @@ export class TaskService {
     }
 
     const now = new Date().toISOString();
+    const status =
+      input.status !== undefined ? input.status : task.status;
+    if (!VALID_STATUSES.has(status)) {
+      throw new Error(
+        `Unsupported task status "${status}". Valid values: ${[
+          ...VALID_STATUSES,
+        ].join(", ")}`
+      );
+    }
+    const archived = status === "archived";
     const updated: Task = {
       ...task,
       title: input.title !== undefined ? input.title.trim() : task.title,
@@ -249,6 +271,8 @@ export class TaskService {
       priority: input.priority !== undefined ? input.priority : task.priority,
       dueDate: input.dueDate !== undefined ? input.dueDate : task.dueDate,
       tags: input.tags !== undefined ? input.tags : task.tags,
+      status,
+      archived,
       updatedAt: now,
     };
 

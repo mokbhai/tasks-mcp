@@ -7,7 +7,7 @@ A comprehensive task and project management server implementing the Model Contex
 ### Core Functionality
 
 - **Project Management**: Create, list, and archive projects with automatic task archiving
-- **Task Management**: Full CRUD operations with status transitions (`todo`, `pending`, `completed`, `archived`)
+- **Task Management**: Full CRUD operations with status transitions (`todo`, `in-progress`, `completed`, `archived`)
 - **Hierarchical Tasks**: Support for parent-child task relationships
 - **Advanced Filtering**: Filter tasks by project, status, priority, tags, and due dates
 - **Sorting Options**: Sort tasks by creation date, due date, priority, or title
@@ -141,7 +141,9 @@ Create a new task.
 - `projectId` (string, required): Parent project ID
 - `title` (string, required): Task title (1-200 characters, trimmed)
 - `description` (string, optional): Task description (trimmed)
+- `remarks` (string, optional): Additional free-form notes (trimmed)
 - `priority` (string, optional): Priority level (`low`, `medium`, `high`)
+- `status` (string, optional): Initial status (`todo`, `in-progress`, `completed`, `archived`; defaults to `todo`)
 - `dueDate` (string, optional): ISO 8601 date string
 - `tags` (string, optional): Comma-separated tags
 - `parentTaskId` (string, optional): Parent task ID for subtasks
@@ -153,7 +155,9 @@ Create a new task.
   "projectId": "my-project",
   "title": "Implement user authentication",
   "description": "Add login and registration functionality",
+  "remarks": "Coordinate with the security team",
   "priority": "high",
+  "status": "in-progress",
   "dueDate": "2025-12-31T23:59:59Z",
   "tags": "backend,security,urgent"
 }
@@ -166,7 +170,7 @@ List tasks with advanced filtering and sorting.
 **Parameters:**
 
 - `projectId` (string, optional): Filter by project
-- `status` (string, optional): Filter by status (`todo`, `pending`, `completed`, `archived`)
+- `status` (string, optional): Filter by status (`todo`, `in-progress`, `completed`, `archived`)
 - `priority` (string, optional): Filter by priority (`low`, `medium`, `high`)
 - `tags` (array, optional): Filter by tags
 - `hasSubtasks` (boolean, optional): Filter tasks with/without subtasks
@@ -195,7 +199,9 @@ Update an existing task.
 - `taskId` (string, required): Task identifier
 - `title` (string, optional): New title
 - `description` (string, optional): New description
+- `remarks` (string, optional): New remarks
 - `priority` (string, optional): New priority
+- `status` (string, optional): New status (`todo`, `in-progress`, `completed`, `archived`)
 - `dueDate` (string, optional): New due date
 - `tags` (string, optional): New tags
 
@@ -204,26 +210,8 @@ Update an existing task.
 ```json
 {
   "taskId": "task-123",
-  "title": "Updated task title",
+  "status": "completed",
   "priority": "medium"
-}
-```
-
-#### `move_task`
-
-Change task status.
-
-**Parameters:**
-
-- `taskId` (string, required): Task identifier
-- `status` (string, required): New status (`todo`, `pending`, `completed`, `archived`)
-
-**Example:**
-
-```json
-{
-  "taskId": "task-123",
-  "status": "completed"
 }
 ```
 
@@ -253,7 +241,7 @@ The server includes comprehensive input validation:
 - **Tags**: Lowercase, deduplicated, max 20 characters each
 - **Dates**: ISO 8601 format validation
 - **Priorities**: `low`, `medium`, `high`
-- **Statuses**: `todo`, `pending`, `completed`, `archived`
+- **Statuses**: `todo`, `in-progress`, `completed`, `archived`
 
 ## Development
 

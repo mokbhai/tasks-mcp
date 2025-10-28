@@ -1,5 +1,6 @@
 import type Redis from "ioredis";
 import type { Project } from "../types";
+import { getLogger } from "../logger";
 
 const PROJECT_INDEX_KEY = "projects:index";
 const projectKey = (id: string) => `project:${id}`;
@@ -12,7 +13,10 @@ const parseProject = (value: string | null): Project | null => {
   try {
     return JSON.parse(value) as Project;
   } catch (error) {
-    console.error("[projectRepository] failed to parse project:", error);
+    getLogger().error("Failed to parse project from Redis", {
+      error,
+      rawValue: value,
+    });
     return null;
   }
 };

@@ -1,5 +1,6 @@
 import type Redis from "ioredis";
 import type { Task } from "../types";
+import { getLogger } from "../logger";
 
 const TASK_INDEX_KEY = "tasks:index";
 const taskKey = (id: string) => `task:${id}`;
@@ -13,7 +14,10 @@ const parseTask = (value: string | null): Task | null => {
   try {
     return JSON.parse(value) as Task;
   } catch (error) {
-    console.error("[taskRepository] failed to parse task:", error);
+    getLogger().error("Failed to parse task from Redis", {
+      error,
+      rawValue: value,
+    });
     return null;
   }
 };

@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { getConfig } from "./config";
+import { initLogger, getLogger } from "./logger";
 import { getRedisClient } from "./storage/redisClient";
 import { ProjectRepository } from "./repositories/projectRepository";
 import { TaskRepository } from "./repositories/taskRepository";
@@ -16,6 +17,8 @@ import { registerPrompts } from "./prompts";
 
 const main = async () => {
   const config = getConfig();
+  initLogger(config.logging);
+  const logger = getLogger().child({ component: "server" });
   const redis = getRedisClient(config);
 
   const projectRepository = new ProjectRepository(redis);
@@ -79,12 +82,14 @@ const main = async () => {
   const port = parseInt(process.env.PORT || "3000");
   const serverInstance = app
     .listen(port, () => {
-      console.log(
-        `[mcp] Server "${config.serverName}" is ready on http://localhost:${port}/mcp`
-      );
+      logger.info("Server ready", {
+        serverName: config.serverName,
+        port,
+        endpoint: `/mcp`,
+      });
     })
     .on("error", (error: any) => {
-      console.error("Server error:", error);
+      logger.error("Server error", { error });
       process.exit(1);
     });
 
@@ -111,6 +116,6 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  console.error("[mcp] Fatal error", error);
+  getLogger().error("Fatal error during startup", { error });
   process.exit(1);
 });

@@ -121,6 +121,33 @@ describe("TaskService", () => {
       expect(result.parentTaskId).toBe("parent-123");
       expect(mockTaskRepository.getById).toHaveBeenCalledWith("parent-123");
     });
+
+    test("creates task with provided status", async () => {
+      const taskData = {
+        projectId: "project-1",
+        title: "In progress task",
+        status: "pending" as TaskStatus,
+      };
+
+      const result = await taskService.createTask(taskData);
+
+      expect(result.status).toBe("pending");
+      expect(result.archived).toBe(false);
+      expect(mockTaskRepository.create).toHaveBeenCalledTimes(1);
+    });
+
+    test("creates archived task when status is archived", async () => {
+      const taskData = {
+        projectId: "project-1",
+        title: "Archived task",
+        status: "archived" as TaskStatus,
+      };
+
+      const result = await taskService.createTask(taskData);
+
+      expect(result.status).toBe("archived");
+      expect(result.archived).toBe(true);
+    });
   });
 
   describe("updateTask", () => {
@@ -202,6 +229,33 @@ describe("TaskService", () => {
       expect(result!.description).toBe("Original description"); // Unchanged
       expect(result!.priority).toBe("medium"); // Unchanged
 
+      expect(mockTaskRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    test("updates status and archived flag", async () => {
+      const existingTask = {
+        id: "task-1",
+        projectId: "project-1",
+        title: "Test Task",
+        description: "Original description",
+        remarks: "Old remarks",
+        status: "todo" as TaskStatus,
+        priority: "medium" as TaskPriority,
+        tags: ["important"],
+        archived: false,
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+      };
+
+      mockTaskRepository.getById.mockResolvedValue(existingTask);
+
+      const result = await taskService.updateTask({
+        taskId: "task-1",
+        status: "archived",
+      });
+
+      expect(result.status).toBe("archived");
+      expect(result.archived).toBe(true);
       expect(mockTaskRepository.save).toHaveBeenCalledTimes(1);
     });
   });

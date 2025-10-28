@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ProjectService } from "../services/projectService";
 import type { TaskService } from "../services/taskService";
 import type { Project, TaskStatus, TaskPriority } from "../types";
+import { getLogger } from "../logger";
 import {
   ProjectNameSchema,
   TaskTitlesSchema,
@@ -20,8 +21,23 @@ import {
   SearchQuerySchema,
 } from "../validation";
 
-const TASK_STATUS_ENUM = ["todo", "pending", "completed", "archived"] as const;
-const TASK_PRIORITY_ENUM = ["low", "medium", "high"] as const;
+const withToolLogging = (
+  toolName: string,
+  handler: (input: any, extra: any) => Promise<any>
+) => {
+  return async (input: unknown, extra: unknown) => {
+    const logger = getLogger().child({ component: "tool", tool: toolName });
+    logger.info(`${toolName} requested`);
+    try {
+      const result = await handler(input, extra);
+      logger.info("true");
+      return result;
+    } catch (error) {
+      logger.error("false", { error });
+      throw error;
+    }
+  };
+};
 
 export function registerTaskTools(
   server: McpServer,
@@ -35,7 +51,7 @@ export function registerTaskTools(
     {
       title: "Create Task",
       description:
-        "Create new tasks inside a project. Multiple titles can be provided separated by commas. Supports due dates (ISO string), priority (low/medium/high), tags (comma-separated), remarks, and parent task ID for subtasks.",
+        "Create new tasks inside a project. Multiple titles can be provided separated by commas. Supports due dates (ISO string), priority (low/medium/high), status, tags (comma-separated), remarks, and parent task ID for subtasks.",
       inputSchema: {
         projectName: ProjectNameSchema,
         titles: TaskTitlesSchema,
@@ -45,9 +61,10 @@ export function registerTaskTools(
         dueDate: DueDateSchema,
         tags: TagsSchema,
         parentTaskId: TaskIdSchema.optional(),
+        status: StatusSchema.optional(),
       },
     },
-    async (input, extra) => {
+    withToolLogging("create_task", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const {
         projectName,
@@ -58,6 +75,7 @@ export function registerTaskTools(
         dueDate,
         tags,
         parentTaskId,
+        status,
       } = input;
       const found = await projectService.getByName(projectName);
       if (!found) {
@@ -80,6 +98,7 @@ export function registerTaskTools(
           dueDate,
           tags,
           parentTaskId,
+          status: status as TaskStatus | "todo",
         });
         tasks.push(task);
       }
@@ -109,7 +128,7 @@ export function registerTaskTools(
       }
 
       return toJsonResponse(tasks, suggestions);
-    }
+    })
   );
 
   server.registerTool(
@@ -129,7 +148,7 @@ export function registerTaskTools(
         includeArchived: BooleanSchema.optional(),
       },
     },
-    async (input, extra) => {
+    withToolLogging("list_tasks", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       let projectId: string | undefined;
       if (input?.projectName) {
@@ -183,47 +202,7 @@ export function registerTaskTools(
       }
 
       return toJsonResponse(tasks, suggestions);
-    }
-  );
-
-  server.registerTool(
-    "move_task",
-    {
-      title: "Move Task",
-      description:
-        "Move a task between todo, pending, completed, or archived states.",
-      inputSchema: {
-        taskId: TaskIdSchema,
-        status: StatusSchema,
-      },
-    },
-    async (input, extra) => {
-      guardAuth(metadataFromContext(extra));
-      const task = await taskService.moveTask({
-        taskId: input.taskId,
-        status: input.status as TaskStatus,
-      });
-
-      const suggestions: string[] = [];
-      if (task) {
-        if (task.status === "completed") {
-          suggestions.push(
-            "Consider creating follow-up tasks or subtasks for completed work"
-          );
-          suggestions.push("Use archive_task if this task is no longer needed");
-        } else if (task.status === "pending") {
-          suggestions.push(
-            "Set a due date for pending tasks to track progress"
-          );
-          suggestions.push("Update priority if this task became more urgent");
-        } else if (task.status === "todo") {
-          suggestions.push("Break down large tasks into smaller subtasks");
-          suggestions.push("Add tags for better organization");
-        }
-      }
-
-      return toJsonResponse(task, suggestions);
-    }
+    })
   );
 
   server.registerTool(
@@ -231,7 +210,7 @@ export function registerTaskTools(
     {
       title: "Update Task",
       description:
-        "Update existing task properties like title, description, remarks, priority, due date, and tags.",
+        "Update existing task properties like title, description, remarks, priority, due date, tags, and status.",
       inputSchema: {
         taskId: TaskIdSchema,
         title: TaskTitleSchema.optional(),
@@ -240,12 +219,21 @@ export function registerTaskTools(
         priority: PrioritySchema.optional(),
         dueDate: DueDateSchema,
         tags: TagsSchema,
+        status: StatusSchema.optional(),
       },
     },
-    async (input, extra) => {
+    withToolLogging("update_task", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
-      const { taskId, title, description, remarks, priority, dueDate, tags } =
-        input;
+      const {
+        taskId,
+        title,
+        description,
+        remarks,
+        priority,
+        dueDate,
+        tags,
+        status,
+      } = input;
       const parsedTags = tags || [];
       const task = await taskService.updateTask({
         taskId,
@@ -255,6 +243,7 @@ export function registerTaskTools(
         priority: priority as TaskPriority | undefined,
         dueDate,
         tags: parsedTags,
+        status: status as TaskStatus | undefined,
       });
 
       const suggestions: string[] = [];
@@ -276,7 +265,7 @@ export function registerTaskTools(
       }
 
       return toJsonResponse(task, suggestions);
-    }
+    })
   );
 
   server.registerTool(
@@ -289,12 +278,12 @@ export function registerTaskTools(
         taskIds: z.string().min(1, "Task ids are required."),
       },
     },
-    async (input, extra) => {
+    withToolLogging("archive_task", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const ids = input.taskIds
         .split(",")
-        .map((id) => id.trim())
-        .filter((id) => id);
+        .map((id: string) => id.trim())
+        .filter((id: string) => id);
       if (ids.length === 0) {
         throw new Error("No valid task ids provided.");
       }
@@ -318,7 +307,7 @@ export function registerTaskTools(
       }
 
       return toJsonResponse(tasks, suggestions);
-    }
+    })
   );
 
   server.registerTool(
@@ -335,7 +324,7 @@ export function registerTaskTools(
         includeArchived: BooleanSchema.optional(),
       },
     },
-    async (input, extra) => {
+    withToolLogging("search_tasks", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const allTasks = await taskService.listTasks({
         includeArchived: input?.includeArchived,
@@ -409,7 +398,7 @@ export function registerTaskTools(
           "Try using broader search terms or check if the project name is correct"
         );
         suggestions.push(
-          "Use advanced query syntax like 'priority:high' or 'status:pending'"
+          "Use advanced query syntax like 'priority:high' or 'status:todo'"
         );
         suggestions.push(
           "Try searching without tags filter to see all matching tasks"
@@ -421,7 +410,7 @@ export function registerTaskTools(
       }
 
       return toJsonResponse(filteredTasks, suggestions);
-    }
+    })
   );
 }
 
@@ -447,7 +436,7 @@ function parseSearchQuery(query: string): {
           break;
         case "status":
           if (
-            ["todo", "pending", "completed", "archived"].includes(
+            ["todo", "in-progress", "completed", "archived"].includes(
               value.toLowerCase()
             )
           ) {

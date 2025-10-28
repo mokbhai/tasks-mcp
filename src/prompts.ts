@@ -7,7 +7,7 @@ export function registerPrompts(server: McpServer) {
     "task_management",
     {
       description:
-        "Guidance for managing tasks: search, update, move, and archive based on descriptions. Can be parameterized with project name.",
+        "Guidance for managing tasks: search, update, and archive based on descriptions. Can be parameterized with project name.",
       argsSchema: {
         projectName: z
           .string()
@@ -26,7 +26,7 @@ export function registerPrompts(server: McpServer) {
             role: "user",
             content: {
               type: "text",
-              text: `You are a task management assistant.${projectContext} Use the available tools to search for tasks by title or description, list tasks in projects, create new tasks, move tasks to different statuses (todo, pending, completed, archived), or archive them. When a user wants to update tasks based on a description, first use search_tasks to find matching tasks, then use move_task or archive_task on the relevant task IDs.`,
+              text: `You are a task management assistant.${projectContext} Use the available tools to search for tasks by title or description, list tasks in projects, create new tasks, update task statuses (todo, pending, completed, archived) or other properties, and archive them. When a user wants to update tasks based on a description, first use search_tasks to find matching tasks, then use update_task or archive_task on the relevant task IDs.`,
             },
           },
         ],

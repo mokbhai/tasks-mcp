@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ProjectService } from "../services/projectService";
+import { getLogger } from "../logger";
 import {
   ProjectNameSchema,
   ProjectDescriptionSchema,
@@ -16,6 +17,24 @@ export function registerProjectTools(
   guardAuth: (metadata?: Record<string, unknown>) => void,
   metadataFromContext: (context: unknown) => Record<string, unknown> | undefined
 ) {
+  const withToolLogging = (
+    toolName: string,
+    handler: (input: any, extra: any) => Promise<any>
+  ) => {
+    return async (input: unknown, extra: unknown) => {
+      const logger = getLogger().child({ component: "tool", tool: toolName });
+      logger.info(`${toolName} requested`);
+      try {
+        const result = await handler(input, extra);
+        logger.info("true");
+        return result;
+      } catch (error) {
+        logger.error("false", { error });
+        throw error;
+      }
+    };
+  };
+
   server.registerTool(
     "create_project",
     {
@@ -28,7 +47,7 @@ export function registerProjectTools(
         tags: TagsSchema,
       },
     },
-    async (input, extra) => {
+    withToolLogging("create_project", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const { names, description, tags } = input;
       // names is now already an array from ProjectNamesSchema transform
@@ -42,7 +61,7 @@ export function registerProjectTools(
         projects.push(project);
       }
       return toJsonResponse(projects);
-    }
+    })
   );
 
   server.registerTool(
@@ -55,13 +74,13 @@ export function registerProjectTools(
         includeArchived: BooleanSchema.optional(),
       },
     },
-    async (input, extra) => {
+    withToolLogging("list_projects", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const projects = await projectService.listProjects(
         input?.includeArchived ? { includeArchived: true } : {}
       );
       return toJsonResponse(projects);
-    }
+    })
   );
 
   server.registerTool(
@@ -74,7 +93,7 @@ export function registerProjectTools(
         projectNames: ProjectNamesStringSchema,
       },
     },
-    async (input, extra) => {
+    withToolLogging("archive_project", async (input, extra) => {
       guardAuth(metadataFromContext(extra));
       const { projectNames } = input;
       // projectNames is now already an array from ProjectNamesStringSchema transform
@@ -84,7 +103,7 @@ export function registerProjectTools(
         projects.push(project);
       }
       return toJsonResponse(projects);
-    }
+    })
   );
 }
 
