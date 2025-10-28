@@ -390,8 +390,10 @@ export function registerTaskTools(
 
       // Filter by tags if provided
       if (input.tags && input.tags.length > 0) {
-        filteredTasks = filteredTasks.filter((task) =>
-          input.tags.some((tag: string) => task.tags.includes(tag))
+        filteredTasks = filteredTasks.filter(
+          (task) =>
+            Array.isArray(input.tags) &&
+            input.tags.some((tag: string) => task.tags.includes(tag))
         );
       }
 
