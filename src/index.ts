@@ -9,10 +9,12 @@ import { TaskService } from "./services/taskService";
 import { ensureAuthorized } from "./auth/basicAuth";
 import type { TaskStatus, Project } from "./types";
 import express from "express";
+import cors from "cors";
 import { registerProjectTools } from "./tools/projects";
 import { registerTaskTools } from "./tools/tasks";
 import { registerResources } from "./resources";
 import { registerPrompts } from "./prompts";
+import { registerRestApi } from "./api";
 
 const main = async () => {
   const config = getConfig();
@@ -59,7 +61,11 @@ const main = async () => {
   registerPrompts(server);
 
   const app = express();
+  app.use(cors()); // Enable CORS for all origins
   app.use(express.json());
+
+  // Register REST API for the UI
+  registerRestApi(app, projectService, taskService);
 
   app.post("/mcp", async (req: any, res: any) => {
     const transport = new StreamableHTTPServerTransport({
