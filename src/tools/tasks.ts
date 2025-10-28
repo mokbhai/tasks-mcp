@@ -328,8 +328,8 @@ export function registerTaskTools(
       description:
         "Search tasks by title or description across all projects. Supports advanced query syntax like 'priority:high due:before:2025-11-01' and tag filtering. Supports sorting.",
       inputSchema: {
-        query: SearchQuerySchema, // Can be advanced query or simple text
-        tags: TagsSchema, // comma-separated tags to filter by
+        query: SearchQuerySchema.optional(), // Can be advanced query or simple text
+        tags: TagsSchema.optional(), // comma-separated tags to filter by
         sortBy: SortBySchema.optional(),
         order: OrderSchema.optional(),
         includeArchived: BooleanSchema.optional(),
