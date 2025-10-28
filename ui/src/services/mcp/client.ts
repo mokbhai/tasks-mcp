@@ -1,61 +1,37 @@
-// MCP Client for communicating with the Todo MCP Server
-// This is a simplified HTTP-based client for the MVP
-// TODO: Implement WebSocket support for real-time updates
+// REST API client for the UI
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-export interface MCPRequest {
-  method: string;
-  params?: Record<string, unknown>;
-}
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
 
-export interface MCPResponse<T = unknown> {
-  result?: T;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
-
-class MCPClient {
-  private baseUrl: string;
-
-  constructor(baseUrl: string = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
-  }
-
-  async call<T = unknown>(method: string, params?: Record<string, unknown> | unknown): Promise<T> {
-    try {
-      const response = await fetch(`${this.baseUrl}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: Date.now(),
-          method,
-          params,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: MCPResponse<T> = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-
-      return data.result as T;
-    } catch (error) {
-      console.error(`MCP call failed for ${method}:`, error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
   }
 }
 
-// Singleton instance
-export const mcpClient = new MCPClient(
-  import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3000'
-);
+export const apiClient = {
+  get: <T>(endpoint: string) => fetchApi<T>(endpoint, { method: 'GET' }),
+  post: <T>(endpoint: string, data?: unknown) =>
+    fetchApi<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+  patch: <T>(endpoint: string, data?: unknown) =>
+    fetchApi<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+};
